@@ -12,7 +12,7 @@
 
 #define SETTINGS_PATH "/assets/settings.bin"
 #define SETTINGS_MAGIC 0x414B4631u   /* "AKF1" */
-#define SETTINGS_VER   5
+#define SETTINGS_VER   6
 
 static settings_t s_settings;
 
@@ -39,6 +39,9 @@ static void set_defaults(void)
     s_settings.show_classes = FCLS_ALL_MASK;
     s_settings.rain_overlay = false;
     s_settings.amb_style = 0;
+    s_settings.view_az_from = 200;   /* a west-facing window */
+    s_settings.view_az_to = 340;
+    s_settings.view_min_elev = 3;
 }
 
 void settings_load(void)
@@ -55,6 +58,12 @@ void settings_load(void)
         settings_t tmp;
         if (ver == SETTINGS_VER && fread(&tmp, sizeof(tmp), 1, f) == 1) {
             s_settings = tmp;
+        } else if (ver == 5) {
+            /* v5 predates the window view filter; the old struct is a prefix */
+            size_t v5 = offsetof(settings_t, view_enabled);
+            if (fread(&tmp, 1, v5, f) == v5) {
+                memcpy(&s_settings, &tmp, v5);
+            }
         } else if (ver == 4) {
             /* v4 predates map_light; the old struct is a prefix */
             size_t v4 = offsetof(settings_t, map_light);

@@ -40,6 +40,7 @@ static lv_obj_t *s_ta_ssid, *s_ta_pass, *s_ta_city, *s_ta_lat, *s_ta_lon;
 static lv_obj_t *s_ta_watch, *s_ta_ntfy, *s_ta_mqtt, *s_ta_fa, *s_ta_webhook, *s_ta_ladsb;
 static lv_obj_t *s_ta_webpass;
 static lv_obj_t *s_ta_fltapt, *s_ta_altmin, *s_ta_altmax;
+static lv_obj_t *s_sw_view, *s_ta_view_from, *s_ta_view_to, *s_ta_view_elev;
 static lv_obj_t *s_dd_cpa_scope, *s_dd_aptmode;
 static lv_obj_t *s_ta_night_from, *s_ta_night_to, *s_ta_amb_idle;
 static lv_obj_t *s_dd_networks, *s_dd_cities, *s_dd_theme, *s_dd_lang;
@@ -92,7 +93,8 @@ static void ta_focus_cb(lv_event_t *e)
 {
     lv_obj_t *ta = lv_event_get_target(e);
     bool numeric = (ta == s_ta_lat || ta == s_ta_lon || ta == s_ta_amb_idle ||
-                    ta == s_ta_night_from || ta == s_ta_night_to);
+                    ta == s_ta_night_from || ta == s_ta_night_to ||
+                    ta == s_ta_view_from || ta == s_ta_view_to || ta == s_ta_view_elev);
     lv_keyboard_set_mode(s_kb, numeric ? LV_KEYBOARD_MODE_NUMBER : LV_KEYBOARD_MODE_TEXT_LOWER);
     lv_keyboard_set_textarea(s_kb, ta);
     lv_obj_clear_flag(s_kb, LV_OBJ_FLAG_HIDDEN);
@@ -381,6 +383,13 @@ static void save_cb(lv_event_t *e)
     strlcpy(cfg->filter_airport, lv_textarea_get_text(s_ta_fltapt), sizeof(cfg->filter_airport));
     cfg->alt_min_ft = atoi(lv_textarea_get_text(s_ta_altmin));
     cfg->alt_max_ft = atoi(lv_textarea_get_text(s_ta_altmax));
+    cfg->view_enabled = lv_obj_has_state(s_sw_view, LV_STATE_CHECKED);
+    cfg->view_az_from = (int16_t)((atoi(lv_textarea_get_text(s_ta_view_from)) % 360 + 360) % 360);
+    cfg->view_az_to = (int16_t)((atoi(lv_textarea_get_text(s_ta_view_to)) % 360 + 360) % 360);
+    {
+        int e = atoi(lv_textarea_get_text(s_ta_view_elev));
+        cfg->view_min_elev = (int8_t)(e < 0 ? 0 : e > 60 ? 60 : e);
+    }
     cfg->filter_apt_exclude = lv_dropdown_get_selected(s_dd_aptmode) == 1;
     cfg->cpa_all = lv_dropdown_get_selected(s_dd_cpa_scope) == 1;
     cfg->theme = lv_dropdown_get_selected(s_dd_theme);
@@ -685,6 +694,19 @@ void ui_settings_open(void)
     s_sw_ships = add_switch(p, L()->ships_lbl, 0, 716, cfg->ships_enabled);
     s_sw_taf = add_switch(p, L()->taf_lbl, 380, 716, cfg->taf_enabled);
     s_sw_route = add_switch(p, L()->route_lbl, 0, 768, cfg->show_route);
+
+    add_section(p, L()->sec_view, 832);
+    s_sw_view = add_switch(p, L()->view_lbl, 0, 864, cfg->view_enabled);
+    add_label(p, L()->lbl_view_from, 0, 920);
+    snprintf(buf, sizeof(buf), "%d", cfg->view_az_from);
+    s_ta_view_from = add_textarea(p, 0, 944, 140, buf, false);
+    add_label(p, L()->lbl_view_to, 180, 920);
+    snprintf(buf, sizeof(buf), "%d", cfg->view_az_to);
+    s_ta_view_to = add_textarea(p, 180, 944, 140, buf, false);
+    add_label(p, L()->lbl_view_elev, 380, 920);
+    snprintf(buf, sizeof(buf), "%d", cfg->view_min_elev);
+    s_ta_view_elev = add_textarea(p, 380, 944, 140, buf, false);
+    add_hint(p, L()->hint_view, 0, 998, 740);
 
     /* --- Integrations --- */
     p = tab_page(tv, L()->tab_integr);

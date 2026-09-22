@@ -64,6 +64,10 @@ typedef struct {
     double  fav_lat[3], fav_lon[3];
     bool    map_light;        /* lift dark map tiles for readability (#10) */
     bool    retro_map;        /* green map underlay on the retro scope */
+    bool    view_enabled;     /* only traffic visible from a window (sector + elevation) */
+    int16_t view_az_from;     /* sector start, deg true, clockwise to view_az_to */
+    int16_t view_az_to;
+    int8_t  view_min_elev;    /* deg above the horizon, hides what roofs/trees block */
 } settings_t;
 
 /* Load from NVS (menuconfig values as first-boot defaults). Call once at

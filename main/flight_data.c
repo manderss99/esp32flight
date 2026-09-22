@@ -1,6 +1,7 @@
 #include "flight_data.h"
 
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -185,6 +186,29 @@ static int cmp_by_dist(const void *a, const void *b)
     return (da > db) - (da < db);
 }
 
+/* Window view filter: bearing inside the from->to sector (clockwise, wraps
+ * through north) and high enough above the horizon to clear roofs and
+ * trees. Earth curvature is included: at 100 km it hides ~780 m of height,
+ * enough to put a low airliner below a 3 degree cut-off. */
+static bool in_window_view(const settings_t *st, const aircraft_t *ac)
+{
+    int from = ((st->view_az_from % 360) + 360) % 360;
+    int to = ((st->view_az_to % 360) + 360) % 360;
+    float dir = ac->dir_deg;
+    bool in_sector = from <= to ? (dir >= from && dir <= to)
+                                : (dir >= from || dir <= to);
+    if (!in_sector) {
+        return false;
+    }
+    double d_km = ac->dist_nm * 1.852;
+    if (d_km < 0.05) {
+        return true;   /* overhead */
+    }
+    double h_km = (ac->on_ground ? 0 : ac->alt_baro_ft) * 0.0003048
+                  - d_km * d_km / (2.0 * 6371.0);
+    return atan2(h_km, d_km) * 180.0 / M_PI >= st->view_min_elev;
+}
+
 static esp_err_t parse_point_response(const char *json, double lat, double lon,
                                        aircraft_list_t *out)
 {
@@ -230,6 +254,9 @@ static esp_err_t parse_point_response(const char *json, double lat, double lon,
         if (!tmp.on_ground &&
             ((st->alt_min_ft > 0 && tmp.alt_baro_ft < st->alt_min_ft) ||
              (st->alt_max_ft > 0 && tmp.alt_baro_ft > st->alt_max_ft))) {
+            continue;
+        }
+        if (st->view_enabled && !in_window_view(st, &tmp)) {
             continue;
         }
         if (out->count < MAX_AIRCRAFT) {

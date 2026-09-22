@@ -183,6 +183,11 @@ static const char INDEX_HTML[] =
 "<div><label>Screensaver style</label><select id='c_amb_style'><option value='0'>sky map</option><option value='1'>retro radar</option></select></div>"
 "<div><label>Altitude from (ft, 0 = off)</label><input id='c_alt_min_ft' type='number'></div>"
 "<div><label>Altitude to (ft, 0 = off)</label><input id='c_alt_max_ft' type='number'></div>"
+"<div><label>Window view only</label><select id='c_view_enabled'><option value='0'>off</option><option value='1'>on</option></select>"
+"<div class='help'>Only traffic you can actually see from your window: a compass sector (clockwise from/to, 0 = N, 90 = E, 180 = S, 270 = W) and a minimum height above the horizon to clear roofs and trees. A west window is roughly 200 to 340.</div></div>"
+"<div><label>Minimum elevation (deg above horizon)</label><input id='c_view_min_elev' type='number' min='0' max='60'></div>"
+"<div><label>View from (deg)</label><input id='c_view_az_from' type='number' min='0' max='359'></div>"
+"<div><label>View to (deg)</label><input id='c_view_az_to' type='number' min='0' max='359'></div>"
 "<div><label>Airport (ICAO or IATA)</label><input id='c_filter_airport' placeholder='KRK'>"
 "<div class='help'>Flights departing from or arriving at this airport, filtered by the mode on the right. Applies once a flight's route is resolved.</div></div>"
 "<div><label>Airport filter mode</label><select id='c_filter_apt_exclude'><option value='0'>show only this airport</option><option value='1'>hide this airport</option></select></div>"
@@ -515,6 +520,9 @@ static const char INDEX_HTML[] =
 "c.night_auto=document.getElementById('c_night_auto').value==='1';"
 "c.ambient_idle_min=+document.getElementById('c_ambient_idle_min').value;"
 "c.alt_min_ft=+document.getElementById('c_alt_min_ft').value;c.alt_max_ft=+document.getElementById('c_alt_max_ft').value;"
+"c.view_enabled=document.getElementById('c_view_enabled').value==='1';"
+"c.view_az_from=+document.getElementById('c_view_az_from').value;c.view_az_to=+document.getElementById('c_view_az_to').value;"
+"c.view_min_elev=+document.getElementById('c_view_min_elev').value;"
 "const pm=id=>{const v=document.getElementById(id).value.split(':');return (+v[0])*60+(+v[1]||0);};"
 "c.night_start_min=pm('c_night_start');c.night_end_min=pm('c_night_end');"
 "c.fixed=document.getElementById('c_fixed').value==='1';"
@@ -697,6 +705,10 @@ static esp_err_t config_get(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "filter_apt_exclude", c->filter_apt_exclude);
     cJSON_AddNumberToObject(root, "alt_min_ft", c->alt_min_ft);
     cJSON_AddNumberToObject(root, "alt_max_ft", c->alt_max_ft);
+    cJSON_AddBoolToObject(root, "view_enabled", c->view_enabled);
+    cJSON_AddNumberToObject(root, "view_az_from", c->view_az_from);
+    cJSON_AddNumberToObject(root, "view_az_to", c->view_az_to);
+    cJSON_AddNumberToObject(root, "view_min_elev", c->view_min_elev);
     cJSON_AddBoolToObject(root, "taf_enabled", c->taf_enabled);
     cJSON_AddBoolToObject(root, "iss_enabled", c->iss_enabled);
     cJSON_AddBoolToObject(root, "sonde_enabled", c->sonde_enabled);
@@ -786,6 +798,10 @@ static esp_err_t backup_get(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "ambient_idle_min", c->ambient_idle_min);
     cJSON_AddNumberToObject(root, "alt_min_ft", c->alt_min_ft);
     cJSON_AddNumberToObject(root, "alt_max_ft", c->alt_max_ft);
+    cJSON_AddBoolToObject(root, "view_enabled", c->view_enabled);
+    cJSON_AddNumberToObject(root, "view_az_from", c->view_az_from);
+    cJSON_AddNumberToObject(root, "view_az_to", c->view_az_to);
+    cJSON_AddNumberToObject(root, "view_min_elev", c->view_min_elev);
     cJSON_AddBoolToObject(root, "taf_enabled", c->taf_enabled);
     cJSON_AddBoolToObject(root, "iss_enabled", c->iss_enabled);
     cJSON_AddBoolToObject(root, "sonde_enabled", c->sonde_enabled);
@@ -908,6 +924,19 @@ static esp_err_t config_post(httpd_req_t *req)
     }
     if (cJSON_IsNumber((j = cJSON_GetObjectItem(root, "alt_max_ft")))) {
         c->alt_max_ft = (int)j->valuedouble;
+    }
+    if (cJSON_IsBool((j = cJSON_GetObjectItem(root, "view_enabled")))) {
+        c->view_enabled = cJSON_IsTrue(j);
+    }
+    if (cJSON_IsNumber((j = cJSON_GetObjectItem(root, "view_az_from")))) {
+        c->view_az_from = (int16_t)(((int)j->valuedouble % 360 + 360) % 360);
+    }
+    if (cJSON_IsNumber((j = cJSON_GetObjectItem(root, "view_az_to")))) {
+        c->view_az_to = (int16_t)(((int)j->valuedouble % 360 + 360) % 360);
+    }
+    if (cJSON_IsNumber((j = cJSON_GetObjectItem(root, "view_min_elev")))) {
+        int e = (int)j->valuedouble;
+        c->view_min_elev = (int8_t)(e < 0 ? 0 : e > 60 ? 60 : e);
     }
     if (cJSON_IsBool((j = cJSON_GetObjectItem(root, "taf_enabled")))) {
         c->taf_enabled = cJSON_IsTrue(j);

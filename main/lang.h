@@ -48,6 +48,7 @@ typedef struct {
     const char *amb_loading;   /* screensaver placeholder before tiles land */
     const char *apr_fmt;         /* approach: city/icao, minutes */
     const char *lbl_fltapt, *lbl_altmin, *lbl_altmax;
+    const char *sec_view, *view_lbl, *lbl_view_from, *lbl_view_to, *lbl_view_elev, *hint_view;
     const char *sec_traffic, *sec_watch, *sec_alerts;
     const char *sec_look, *sec_screen, *sec_webpanel, *sec_updates;
     const char *cpa_scope_opts;  /* dropdown: interesting-only / all */
